@@ -50,7 +50,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>ro Admin Panel</h1>
+        <h1>roHBLOX Admin Panel</h1>
 
         <div class="key-selection">
             <p>Select API Key Type:</p>
@@ -308,7 +308,7 @@
             const privateKey = privateKeyInput.value;
             if (!privateKey) { setError('listAppsError', 'Please enter the Main Private Key.'); return; }
             try {
-                const response = await makeApiCall('app/list', {}, 'main', privateKey);
+                const response = await makeApiCall('list_apps', {}, 'main', privateKey);
                 showResponse(response);
             } catch (error) {
                 showErrorResponse(error);
