@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fryer.pro Admin Panel</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); max-width: 800px; margin: 20px auto; }
+        h1, h2 { color: #0056b3; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input[type="text"], input[type="password"], textarea {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover { background-color: #0056b3; }
+        .key-selection { margin-bottom: 20px; }
+        .key-selection label { display: inline-block; margin-right: 15px; }
+        .key-selection input[type="radio"] { margin-right: 5px; }
+        .form-section { border: 1px solid #eee; padding: 20px; border-radius: 5px; margin-top: 20px; }
+        .form-section h3 { margin-top: 0; color: #333; }
+        .response-box {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ced4da;
+        }
+        .error-message { color: red; font-weight: bold; margin-bottom: 10px; }
+        .success-message { color: green; font-weight: bold; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fryer.pro Admin Panel</h1>
+
+        <div class="key-selection">
+            <p>Select API Key Type:</p>
+            <label>
+                <input type="radio" name="keyType" value="main" checked> Main Private Key
+            </label>
+            <label>
+                <input type="radio" name="keyType" value="app"> App Private Key
+            </label>
+        </div>
+
+        <label for="privateKeyInput">Enter Private Key:</label>
+        <input type="password" id="privateKeyInput" placeholder="Paste your private key here (e.g., MAIN_SECRET_KEY or App's Private Key)">
+
+        <div id="mainKeyOps" class="form-section">
+            <h2>Main Private Key Operations</h2>
+
+            <h3>1. List All Apps</h3>
+            <button id="listAppsBtn">List Apps</button>
+            <p class="error-message" id="listAppsError"></p>
+
+            <h3>2. Create New App</h3>
+            <label for="createAppName">App Name:</label>
+            <input type="text" id="createAppName" placeholder="e.g., MyNewClientApp">
+            <button id="createAppBtn">Create App</button>
+            <p class="error-message" id="createAppError"></p>
+
+            <h3>3. Delete App</h3>
+            <label for="deleteAppId">App ID:</label>
+            <input type="text" id="deleteAppId" placeholder="ID of app to delete">
+            <button id="deleteAppBtn">Delete App</button>
+            <p class="error-message" id="deleteAppError"></p>
+
+            </div>
+
+        <div id="appKeyOps" class="form-section" style="display:none;">
+            <h2>App Private Key Operations</h2>
+
+            <h3>1. Create New License</h3>
+            <label for="createLicenseUserId">User ID (for license):</label>
+            <input type="text" id="createLicenseUserId" placeholder="User ID">
+            <label for="createLicenseHwid">HWID (for license):</label>
+            <input type="text" id="createLicenseHwid" placeholder="Hardware ID">
+            <label for="createLicenseDuration">Duration (days, optional):</label>
+            <input type="text" id="createLicenseDuration" placeholder="e.g., 30 for 30 days">
+            <button id="createLicenseBtn">Create License</button>
+            <p class="error-message" id="createLicenseError"></p>
+
+            <h3>2. Remove License</h3>
+            <label for="removeLicenseToken">License Token:</label>
+            <input type="text" id="removeLicenseToken" placeholder="Token of license to remove">
+            <button id="removeLicenseBtn">Remove License</button>
+            <p class="error-message" id="removeLicenseError"></p>
+
+            <h3>3. Remove User</h3>
+            <label for="removeUserId">User ID:</label>
+            <input type="text" id="removeUserId" placeholder="ID of user to remove">
+            <button id="removeUserBtn">Remove User</button>
+            <p class="error-message" id="removeUserError"></p>
+
+            </div>
+
+        <div class="response-box" id="responseBox">
+            API Response will appear here...
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const API_BASE_URL = 'https://fryer.pro/auth/';
+
+        // --- Helper Functions for API Calls ---
+
+        // Securely generates a random nonce
+        function generateNonce() {
+            // Using Web Crypto API for secure random string
+            const array = new Uint8Array(16); // 16 bytes for 32 hex chars
+            window.crypto.getRandomValues(array);
+            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Gets current UTC timestamp
+        function getCurrentUtcTimestamp() {
+            return Math.floor(Date.now() / 1000);
+        }
+
+        // Generates HMAC-SHA256 signature
+        async function generateSignature(dataToSign, secretKey) {
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(secretKey);
+            const messageData = encoder.encode(dataToSign);
+
+            const key = await window.crypto.subtle.importKey(
+                "raw",
+                keyData,
+                { name: "HMAC", hash: "SHA-256" },
+                false,
+                ["sign"]
+            );
+
+            const signature = await window.crypto.subtle.sign(
+                "HMAC",
+                key,
+                messageData
+            );
+
+            // Convert ArrayBuffer to hex string
+            return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Makes a signed API request
+        async function makeApiCall(endpoint, payload, keyType, secretKey) {
+            const nonce = generateNonce();
+            const timestamp = getCurrentUtcTimestamp();
+
+            // IMPORTANT: The `public_key` or `private_key` field in the payload
+            // MUST match the key the API is expecting to identify the app.
+            // For Main Key, it's 'private_key' (your main key).
+            // For App Key, it's 'private_key' (the app's private key).
+
+            let signingKeyField;
+            if (keyType === 'main') {
+                signingKeyField = 'private_key'; // Use the main key itself as the identifying private_key
+            } else { // keyType === 'app'
+                signingKeyField = 'private_key'; // Use the app's private key as the identifying private_key
+            }
+
+            // Prepare the data to be signed.
+            // This MUST match the canonicalization used by your Flask `require_security_checks` decorator.
+            // As per your `auth_helpers.py`, it sorts the keys and dumps to canonical JSON.
+            const dataForSignature = {
+                ...payload,
+                [signingKeyField]: secretKey, // Include the key that identifies the app in the signed data
+                nonce: nonce,
+                timestamp: timestamp
+            };
+            
+            // Sort keys for canonical JSON serialization
+            const sortedKeys = Object.keys(dataForSignature).sort();
+            const canonicalStringParts = [];
+            for (const key of sortedKeys) {
+                let value = dataForSignature[key];
+                if (value === null || value === undefined) {
+                    value = ""; // Handle null/undefined values consistently with empty string
+                } else if (typeof value === 'boolean') {
+                    value = String(value).toLowerCase(); // Booleans as 'true' or 'false'
+                } else {
+                    value = String(value); // Convert all other values to string
+                }
+                canonicalStringParts.push(`"${key}":"${value}"`); // Use JSON-like key-value pairs
+            }
+            const canonicalString = `{${canonicalStringParts.join(',')}}`;
+
+
+            // Generate signature
+            const signature = await generateSignature(canonicalString, secretKey);
+
+            const finalPayload = {
+                ...payload,
+                [signingKeyField]: secretKey,
+                nonce: nonce,
+                timestamp: timestamp,
+                signature: signature
+            };
+
+            const url = `${API_BASE_URL}${endpoint}`;
+            
+            responseBox.textContent = `Sending request to ${url} with payload:\n${JSON.stringify(finalPayload, null, 2)}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(finalPayload)
+                });
+
+                const data = await response.json();
+                
+                // Client-side response signature verification (optional but good practice)
+                const mainSecretKeyForVerification = document.getElementById('privateKeyInput').value; // Assuming entered key is MAIN_SECRET_KEY for this example
+                const responseData = data.data;
+                const responseSignature = data.signature;
+
+                if (responseData && responseSignature && keyType === 'main') { // Only verify if using MAIN_SECRET_KEY
+                     const sortedResponseDataStr = JSON.stringify(responseData, Object.keys(responseData).sort(), 0);
+                     const expectedResponseSignature = await generateSignature(sortedResponseDataStr, mainSecretKeyForVerification);
+
+                     if (expectedResponseSignature !== responseSignature) {
+                         responseBox.textContent += `\n\nWARNING: Response signature mismatch! Possible tampering.\n`;
+                     } else {
+                         responseBox.textContent += `\n\nResponse signature verified successfully.\n`;
+                     }
+                }
+
+
+                if (!response.ok) {
+                    const errorMsg = data.error || 'An unknown error occurred.';
+                    throw new Error(`API Error ${response.status}: ${errorMsg}`);
+                }
+                return data; // Return the parsed JSON response
+            } catch (error) {
+                console.error('API Call Error:', error);
+                throw error; // Re-throw to be caught by specific button handlers
+            }
+        }
+
+        // --- UI Logic ---
+        const privateKeyInput = document.getElementById('privateKeyInput');
+        const keyTypeRadios = document.querySelectorAll('input[name="keyType"]');
+        const mainKeyOps = document.getElementById('mainKeyOps');
+        const appKeyOps = document.getElementById('appKeyOps');
+        const responseBox = document.getElementById('responseBox');
+
+        // Functions to clear and set error messages
+        function clearError(id) { document.getElementById(id).textContent = ''; }
+        function setError(id, message) { document.getElementById(id).textContent = message; }
+        function showResponse(data) {
+            responseBox.className = 'response-box success-message'; // Temporarily show success color
+            responseBox.textContent = JSON.stringify(data, null, 2);
+            setTimeout(() => { responseBox.className = 'response-box'; }, 3000); // Revert after 3s
+        }
+        function showErrorResponse(error) {
+            responseBox.className = 'response-box error-message'; // Temporarily show error color
+            responseBox.textContent = `Error: ${error.message || 'Unknown error'}`;
+            setTimeout(() => { responseBox.className = 'response-box'; }, 5000); // Revert after 5s
+        }
+
+
+        // Toggle forms based on key type selection
+        keyTypeRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.value === 'main') {
+                    mainKeyOps.style.display = 'block';
+                    appKeyOps.style.display = 'none';
+                } else {
+                    mainKeyOps.style.display = 'none';
+                    appKeyOps.style.display = 'block';
+                }
+                privateKeyInput.value = ''; // Clear key input on type change
+                responseBox.textContent = 'API Response will appear here...'; // Clear response box
+                clearAllErrors();
+            });
+        });
+
+        function clearAllErrors() {
+            document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+        }
+
+        // --- Event Listeners for Main Key Operations ---
+
+        document.getElementById('listAppsBtn').addEventListener('click', async () => {
+            clearAllErrors();
+            const privateKey = privateKeyInput.value;
+            if (!privateKey) { setError('listAppsError', 'Please enter the Main Private Key.'); return; }
+            try {
+                const response = await makeApiCall('app/list', {}, 'main', privateKey);
+                showResponse(response);
+            } catch (error) {
+                showErrorResponse(error);
+                setError('listAppsError', `Error: ${error.message}`);
+            }
+        });
+
+        document.getElementById('createAppBtn').addEventListener('click', async () => {
+            clearAllErrors();
+            const privateKey = privateKeyInput.value;
+            const appName = document.getElementById('createAppName').value;
+            if (!privateKey) { setError('createAppError', 'Please enter the Main Private Key.'); return; }
+            if (!appName) { setError('createAppError', 'Please enter App Name.'); return; }
+
+            try {
+                const response = await makeApiCall('app/create', { app_name: appName }, 'main', privateKey);
+                showResponse(response);
+                document.getElementById('createAppName').value = ''; // Clear input
+            } catch (error) {
+                showErrorResponse(error);
+                setError('createAppError', `Error: ${error.message}`);
+            }
+        });
+
+        document.getElementById('deleteAppBtn').addEventListener('click', async () => {
+            clearAllErrors();
+            const privateKey = privateKeyInput.value;
+            const appId = document.getElementById('deleteAppId').value;
+            if (!privateKey) { setError('deleteAppError', 'Please enter the Main Private Key.'); return; }
+            if (!appId) { setError('deleteAppError', 'Please enter App ID.'); return; }
+
+            try {
+                const response = await makeApiCall('app/delete', { app_id: appId }, 'main', privateKey);
+                showResponse(response);
+                document.getElementById('deleteAppId').value = ''; // Clear input
+            } catch (error) {
+                showErrorResponse(error);
+                setError('deleteAppError', `Error: ${error.message}`);
+            }
+        });
+
+
+        // --- Event Listeners for App Key Operations ---
+
+        document.getElementById('createLicenseBtn').addEventListener('click', async () => {
+            clearAllErrors();
+            const privateKey = privateKeyInput.value; // This is the App's private key
+            const userId = document.getElementById('createLicenseUserId').value;
+            const hwid = document.getElementById('createLicenseHwid').value;
+            const duration = document.getElementById('createLicenseDuration').value;
+
+            if (!privateKey) { setError('createLicenseError', "Please enter the App's Private Key."); return; }
+            if (!userId || !hwid) { setError('createLicenseError', 'User ID and HWID are required.'); return; }
+
+            const payload = { user_id: userId, hwid: hwid };
+            if (duration) {
+                const days = parseInt(duration);
+                if (isNaN(days) || days <= 0) {
+                    setError('createLicenseError', 'Duration must be a positive number of days.');
+                    return;
+                }
+                payload.duration_days = days;
+            }
+
+            try {
+                const response = await makeApiCall('license/create', payload, 'app', privateKey);
+                showResponse(response);
+                document.getElementById('createLicenseUserId').value = '';
+                document.getElementById('createLicenseHwid').value = '';
+                document.getElementById('createLicenseDuration').value = '';
+            } catch (error) {
+                showErrorResponse(error);
+                setError('createLicenseError', `Error: ${error.message}`);
+            }
+        });
+
+        document.getElementById('removeLicenseBtn').addEventListener('click', async () => {
+            clearAllErrors();
+            const privateKey = privateKeyInput.value; // This is the App's private key
+            const licenseToken = document.getElementById('removeLicenseToken').value;
+
+            if (!privateKey) { setError('removeLicenseError', "Please enter the App's Private Key."); return; }
+            if (!licenseToken) { setError('removeLicenseError', 'License Token is required.'); return; }
+
+            try {
+                const response = await makeApiCall('license/remove', { license_token: licenseToken }, 'app', privateKey);
+                showResponse(response);
+                document.getElementById('removeLicenseToken').value = '';
+            } catch (error) {
+                showErrorResponse(error);
+                setError('removeLicenseError', `Error: ${error.message}`);
+            }
+        });
+        
+        document.getElementById('removeUserBtn').addEventListener('click', async () => {
+            clearAllErrors();
+            const privateKey = privateKeyInput.value; // This is the App's private key
+            const userId = document.getElementById('removeUserId').value;
+
+            if (!privateKey) { setError('removeUserError', "Please enter the App's Private Key."); return; }
+            if (!userId) { setError('removeUserError', 'User ID is required.'); return; }
+
+            try {
+                const response = await makeApiCall('user/remove', { user_id: userId }, 'app', privateKey);
+                showResponse(response);
+                document.getElementById('removeUserId').value = '';
+            } catch (error) {
+                showErrorResponse(error);
+                setError('removeUserError', `Error: ${error.message}`);
+            }
+        });
+
+
+        // Initial display
+        document.addEventListener('DOMContentLoaded', () => {
+            mainKeyOps.style.display = 'block';
+            appKeyOps.style.display = 'none';
+        });
+
+    </script>
+</body>
+</html>
