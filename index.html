@@ -50,7 +50,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>roHBLOX234 Admin Panel</h1>
+        <h1>roHBLOX Admin Panel</h1>
 
         <div class="key-selection">
             <p>Select API Key Type:</p>
@@ -159,53 +159,38 @@
             return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, '0')).join('');
         }
 
-        // *** NEW HELPER FUNCTION FOR CANONICAL JSON STRING ***
-        // This function ensures the JSON string matches what Flask's json.dumps(sort_keys=True, separators=(',', ':')) produces.
-        function getCanonicalJsonString(obj) {
-            // Recursively sort keys of objects
-            function sortObjectKeys(o) {
-                if (Array.isArray(o)) {
-                    return o.map(sortObjectKeys);
-                } else if (typeof o === 'object' && o !== null) {
-                    const sorted = {};
-                    Object.keys(o).sort().forEach(key => {
-                        sorted[key] = sortObjectKeys(o[key]);
-                    });
-                    return sorted;
-                }
-                return o;
-            }
-
-            // Create a sorted, stringified version
-            // JSON.stringify by default might add spaces; we explicitly remove them.
-            return JSON.stringify(sortObjectKeys(obj))
-                .replace(/:/g, ':') // Remove spaces after colons (if any)
-                .replace(/,/g, ',') // Remove spaces after commas (if any)
-                .replace(/\{\s*/g, '{') // Remove spaces after opening braces
-                .replace(/\s*\}/g, '}') // Remove spaces before closing braces
-                .replace(/\[\s*/g, '[') // Remove spaces after opening brackets
-                .replace(/\s*\]/g, ']'); // Remove spaces before closing brackets
-        }
-
+        // *** NOTE: The getCanonicalJsonString function has been removed as it's not applicable
+        // *** to your server's custom string concatenation logic.
 
         // Makes a signed API request
         async function makeApiCall(endpoint, payload, keyType, secretKey) {
             const nonce = generateNonce();
             const timestamp = getCurrentUtcTimestamp();
 
-            // IMPORTANT: The private_key field should NOT be part of the data signed.
-            // It's used to identify the secret key for signing, not part of the content.
-            const dataForSignature = {
-                ...payload,
-                nonce: nonce,
-                timestamp: timestamp
-            };
-            
-            // Generate the canonical string for signing
-            const canonicalString = getCanonicalJsonString(dataForSignature);
-            console.log("DEBUG: Canonical String for Signing:", canonicalString); // Check this in console!
+            let canonicalString;
 
-            // Generate signature
+            // *** CRITICAL CHANGE: Build the signing string EXACTLY as the server does ***
+            // Server-side: `concat = f"main_key={main_key}name={name}nonce={nonce}timestamp={timestamp}"`
+            // This requires the client to mimic this exact string concatenation.
+
+            // The 'name' parameter on the server corresponds to 'app_name' from the client payload
+            // for the 'create_app' endpoint. For other endpoints (like 'list_apps') where 'app_name'
+            // is not relevant in the payload, the 'name' variable on the server side would likely be 'None'.
+            // Python's f-string `name={None}` embeds "None". So we must match that.
+            let nameValueForSigning = 'None'; // Default for endpoints where 'name' (app_name) is not provided
+            if (endpoint === 'create_app' && payload.app_name !== undefined) {
+                nameValueForSigning = payload.app_name;
+            }
+            // Add more specific `if/else if` blocks here if other endpoints use *different* fields
+            // in their server-side `concat` string (e.g., for `app/delete` you might need `app_id`).
+            // If all endpoints use this fixed structure, this conditional covers `name`.
+
+            // Construct the canonical string based on the server's f-string
+            canonicalString = `main_key=${secretKey}name=${nameValueForSigning}nonce=${nonce}timestamp=${timestamp}`;
+
+            console.log("DEBUG: Canonical String for Server Signing:", canonicalString); // VERIFY THIS STRING!
+
+            // Generate signature using the canonical string and the secret key
             const signature = await generateSignature(canonicalString, secretKey);
 
             // The finalPayload sent to the server still includes the private_key
@@ -226,7 +211,7 @@
             };
 
             const url = `${API_BASE_URL}${endpoint}`;
-            
+
             responseBox.textContent = `Sending request to ${url} with payload:\n${JSON.stringify(finalPayload, null, 2)}`;
             console.log("DEBUG: Final Payload sent:", finalPayload);
 
@@ -240,26 +225,6 @@
                 });
 
                 const data = await response.json();
-                
-                // Client-side response signature verification (optional but good practice)
-                // This part is commented out for now to focus on request signature.
-                // If you re-enable it, ensure getCanonicalJsonString() is used for responseData.
-                /*
-                const mainSecretKeyForVerification = document.getElementById('privateKeyInput').value;
-                const responseData = data.data; // This is the payload part that was signed by the server
-                const responseSignature = data.signature; // This is the signature from the server
-
-                if (responseData && responseSignature && keyType === 'main') {
-                     const canonicalResponseDataStr = getCanonicalJsonString(responseData);
-                     const expectedResponseSignature = await generateSignature(canonicalResponseDataStr, mainSecretKeyForVerification);
-
-                     if (expectedResponseSignature !== responseSignature) {
-                         responseBox.textContent += `\n\nWARNING: Response signature mismatch! Possible tampering.\n`;
-                     } else {
-                         responseBox.textContent += `\n\nResponse signature verified successfully.\n`;
-                     }
-                }
-                */
 
                 if (!response.ok) {
                     let errorMsg = 'An unknown error occurred.';
