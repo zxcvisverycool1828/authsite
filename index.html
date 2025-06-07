@@ -50,7 +50,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>roHBLOX2 Admin Panel</h1>
+        <h1>roHBLOX234 Admin Panel</h1>
 
         <div class="key-selection">
             <p>Select API Key Type:</p>
@@ -126,7 +126,6 @@
 
         // Securely generates a random nonce
         function generateNonce() {
-            // Using Web Crypto API for secure random string
             const array = new Uint8Array(16); // 16 bytes for 32 hex chars
             window.crypto.getRandomValues(array);
             return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
@@ -157,133 +156,151 @@
                 messageData
             );
 
-            // Convert ArrayBuffer to hex string
             return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, '0')).join('');
         }
 
+        // *** NEW HELPER FUNCTION FOR CANONICAL JSON STRING ***
+        // This function ensures the JSON string matches what Flask's json.dumps(sort_keys=True, separators=(',', ':')) produces.
+        function getCanonicalJsonString(obj) {
+            // Recursively sort keys of objects
+            function sortObjectKeys(o) {
+                if (Array.isArray(o)) {
+                    return o.map(sortObjectKeys);
+                } else if (typeof o === 'object' && o !== null) {
+                    const sorted = {};
+                    Object.keys(o).sort().forEach(key => {
+                        sorted[key] = sortObjectKeys(o[key]);
+                    });
+                    return sorted;
+                }
+                return o;
+            }
+
+            // Create a sorted, stringified version
+            // JSON.stringify by default might add spaces; we explicitly remove them.
+            return JSON.stringify(sortObjectKeys(obj))
+                .replace(/:/g, ':') // Remove spaces after colons (if any)
+                .replace(/,/g, ',') // Remove spaces after commas (if any)
+                .replace(/\{\s*/g, '{') // Remove spaces after opening braces
+                .replace(/\s*\}/g, '}') // Remove spaces before closing braces
+                .replace(/\[\s*/g, '[') // Remove spaces after opening brackets
+                .replace(/\s*\]/g, ']'); // Remove spaces before closing brackets
+        }
+
+
         // Makes a signed API request
-       async function makeApiCall(endpoint, payload, keyType, secretKey) {
-    const nonce = generateNonce();
-    const timestamp = getCurrentUtcTimestamp();
+        async function makeApiCall(endpoint, payload, keyType, secretKey) {
+            const nonce = generateNonce();
+            const timestamp = getCurrentUtcTimestamp();
 
-    // Prepare the data to be signed.
-    // The private_key (or app_key) should *NOT* be part of the data that is signed.
-    // It's the credential used to *generate* the signature on the client,
-    // and to *look up* the secret on the server.
-    // Your server's `require_security_checks` likely extracts the `private_key`
-    // from the request *before* calculating the signature for verification.
-    const dataForSignature = {
-        ...payload, // e.g., {app_name: "MyNewApp"}
-        nonce: nonce,
-        timestamp: timestamp
-    };
+            // IMPORTANT: The private_key field should NOT be part of the data signed.
+            // It's used to identify the secret key for signing, not part of the content.
+            const dataForSignature = {
+                ...payload,
+                nonce: nonce,
+                timestamp: timestamp
+            };
+            
+            // Generate the canonical string for signing
+            const canonicalString = getCanonicalJsonString(dataForSignature);
+            console.log("DEBUG: Canonical String for Signing:", canonicalString); // Check this in console!
 
-    // THIS IS THE CRITICAL CHANGE FOR CANONICALIZATION AND SIGNATURE
-    const canonicalString = getCanonicalJsonString(dataForSignature);
-    console.log("Canonical String for Signing:", canonicalString); // DEBUG: Check this string!
+            // Generate signature
+            const signature = await generateSignature(canonicalString, secretKey);
 
-    // Generate signature using the canonical string and the secret key
-    const signature = await generateSignature(canonicalString, secretKey);
-
-    // The finalPayload sent to the server still includes the private_key
-    // for the server to identify the app/main key.
-    let signingKeyField;
-    if (keyType === 'main') {
-        signingKeyField = 'private_key';
-    } else { // keyType === 'app'
-        signingKeyField = 'private_key';
-    }
-
-    const finalPayload = {
-        ...payload,
-        [signingKeyField]: secretKey, // Include the key in the final payload to be sent
-        nonce: nonce,
-        timestamp: timestamp,
-        signature: signature // The generated signature
-    };
-
-    const url = `${API_BASE_URL}${endpoint}`;
-
-    responseBox.textContent = `Sending request to ${url} with payload:\n${JSON.stringify(finalPayload, null, 2)}`;
-
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(finalPayload)
-        });
-
-        const data = await response.json();
-
-        // Client-side response signature verification (optional but good practice)
-        // This part needs its own canonicalization if 'data.data' isn't plain JSON
-        // For now, let's focus on the request signature.
-        /*
-        const mainSecretKeyForVerification = document.getElementById('privateKeyInput').value;
-        const responseData = data.data; // This is the payload part that was signed by the server
-        const responseSignature = data.signature; // This is the signature from the server
-
-        if (responseData && responseSignature && keyType === 'main') { // Only verify if using MAIN_SECRET_KEY
-             // You need a canonicalization function here that matches your server's response signing
-             const canonicalResponseDataStr = getCanonicalJsonString(responseData); // Use the same canonicalizer
-             const expectedResponseSignature = await generateSignature(canonicalResponseDataStr, mainSecretKeyForVerification);
-
-             if (expectedResponseSignature !== responseSignature) {
-                 responseBox.textContent += `\n\nWARNING: Response signature mismatch! Possible tampering.\n`;
-             } else {
-                 responseBox.textContent += `\n\nResponse signature verified successfully.\n`;
-             }
-        }
-        */
-
-        // --- IMPORTANT: CHANGE ERROR READING LOGIC HERE ---
-        if (!response.ok) {
-            let errorMsg = 'An unknown error occurred.';
-            // Check for the nested error message first
-            if (data && data.data && data.data.payload && data.data.payload.error) {
-                errorMsg = data.data.payload.error;
+            // The finalPayload sent to the server still includes the private_key
+            // for the server to identify the app/main key.
+            let signingKeyField;
+            if (keyType === 'main') {
+                signingKeyField = 'private_key';
+            } else { // keyType === 'app'
+                signingKeyField = 'private_key';
             }
-            // Fallback for direct 'error' key at the root (less common for your structured responses)
-            else if (data && data.error) {
-                errorMsg = data.error;
-            }
-            throw new Error(`API Error ${response.status}: ${errorMsg}`);
-        }
-        return data; // Return the parsed JSON response
-    } catch (error) {
-        console.error('API Call Error:', error);
-        throw error; // Re-throw to be caught by specific button handlers
-    }
-}
-function getCanonicalJsonString(obj) {
-    // Stringify the object with sorted keys to ensure consistent order.
-    // JSON.stringify's replacer function for sorting keys is not natively available like this,
-    // so we sort the object first.
-    function sortObjectKeys(o) {
-        if (Array.isArray(o)) {
-            return o.map(sortObjectKeys);
-        } else if (typeof o === 'object' && o !== null) {
-            const sorted = {};
-            Object.keys(o).sort().forEach(key => {
-                sorted[key] = sortObjectKeys(o[key]);
-            });
-            return sorted;
-        }
-        return o;
-    }
-    const sortedObj = sortObjectKeys(obj);
 
-    // Stringify and then remove spaces to match Flask's `separators=(',', ':')`
-    return JSON.stringify(sortedObj)
-        .replace(/:/g, ':') // Ensure no space after colon (though JSON.stringify adds it, we remove it)
-        .replace(/,/g, ',') // Ensure no space after comma (JSON.stringify might add, we remove it)
-        .replace(/\{\s*/g, '{') // Remove spaces after opening brace
-        .replace(/\s*\}/g, '}') // Remove spaces before closing brace
-        .replace(/\[\s*/g, '[') // Remove spaces after opening bracket
-        .replace(/\s*\]/g, ']'); // Remove spaces before closing bracket
-}
+            const finalPayload = {
+                ...payload,
+                [signingKeyField]: secretKey, // Include the key that identifies the app in the SENT payload
+                nonce: nonce,
+                timestamp: timestamp,
+                signature: signature // The generated signature
+            };
+
+            const url = `${API_BASE_URL}${endpoint}`;
+            
+            responseBox.textContent = `Sending request to ${url} with payload:\n${JSON.stringify(finalPayload, null, 2)}`;
+            console.log("DEBUG: Final Payload sent:", finalPayload);
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(finalPayload)
+                });
+
+                const data = await response.json();
+                
+                // Client-side response signature verification (optional but good practice)
+                // This part is commented out for now to focus on request signature.
+                // If you re-enable it, ensure getCanonicalJsonString() is used for responseData.
+                /*
+                const mainSecretKeyForVerification = document.getElementById('privateKeyInput').value;
+                const responseData = data.data; // This is the payload part that was signed by the server
+                const responseSignature = data.signature; // This is the signature from the server
+
+                if (responseData && responseSignature && keyType === 'main') {
+                     const canonicalResponseDataStr = getCanonicalJsonString(responseData);
+                     const expectedResponseSignature = await generateSignature(canonicalResponseDataStr, mainSecretKeyForVerification);
+
+                     if (expectedResponseSignature !== responseSignature) {
+                         responseBox.textContent += `\n\nWARNING: Response signature mismatch! Possible tampering.\n`;
+                     } else {
+                         responseBox.textContent += `\n\nResponse signature verified successfully.\n`;
+                     }
+                }
+                */
+
+                if (!response.ok) {
+                    let errorMsg = 'An unknown error occurred.';
+                    // IMPORTANT: Read the error from the nested payload structure
+                    if (data && data.data && data.data.payload && data.data.payload.error) {
+                        errorMsg = data.data.payload.error;
+                    }
+                    // Fallback for direct 'error' key at the root (less common for your structured responses)
+                    else if (data && data.error) {
+                        errorMsg = data.error;
+                    }
+                    throw new Error(`API Error ${response.status}: ${errorMsg}`);
+                }
+                return data; // Return the parsed JSON response
+            } catch (error) {
+                console.error('API Call Error:', error);
+                throw error; // Re-throw to be caught by specific button handlers
+            }
+        }
+
+        // --- UI Logic ---
+        const privateKeyInput = document.getElementById('privateKeyInput');
+        const keyTypeRadios = document.querySelectorAll('input[name="keyType"]');
+        const mainKeyOps = document.getElementById('mainKeyOps');
+        const appKeyOps = document.getElementById('appKeyOps');
+        const responseBox = document.getElementById('responseBox');
+
+        // Functions to clear and set error messages
+        function clearError(id) { document.getElementById(id).textContent = ''; }
+        function setError(id, message) { document.getElementById(id).textContent = message; }
+        function showResponse(data) {
+            responseBox.className = 'response-box success-message'; // Temporarily show success color
+            responseBox.textContent = JSON.stringify(data, null, 2);
+            setTimeout(() => { responseBox.className = 'response-box'; }, 3000); // Revert after 3s
+        }
+        function showErrorResponse(error) {
+            responseBox.className = 'response-box error-message'; // Temporarily show error color
+            responseBox.textContent = `Error: ${error.message || 'Unknown error'}`;
+            setTimeout(() => { responseBox.className = 'response-box'; }, 5000); // Revert after 5s
+        }
+
 
         // Toggle forms based on key type selection
         keyTypeRadios.forEach(radio => {
