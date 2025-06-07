@@ -324,7 +324,7 @@
             if (!appName) { setError('createAppError', 'Please enter App Name.'); return; }
 
             try {
-                const response = await makeApiCall('app/create', { app_name: appName }, 'main', privateKey);
+                const response = await makeApiCall('create_app', { app_name: appName }, 'main', privateKey);
                 showResponse(response);
                 document.getElementById('createAppName').value = ''; // Clear input
             } catch (error) {
