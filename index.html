@@ -3,91 +3,207 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backend.Fryer.pro Admin Panel</title>
+    <title>roHBLOX Admin Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
-        .container { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); max-width: 800px; margin: 20px auto; }
-        h1, h2 { color: #0056b3; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; }
-        input[type="text"], input[type="password"], textarea {
-            width: calc(100% - 22px);
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        /* --- Modern Dark Theme with CSS Variables --- */
+        :root {
+            --bg-color: #12121c;
+            --surface-color: #1e1e2d;
+            --primary-text: #e0e0e0;
+            --secondary-text: #a0a0b0;
+            --accent-color-1: #3a7bd5;
+            --accent-color-2: #3a3ad5;
+            --accent-gradient: linear-gradient(45deg, var(--accent-color-1), var(--accent-color-2));
+            --border-color: #333344;
+            --error-color: #ff5555;
+            --success-color: #50fa7b;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --glow-color: rgba(58, 123, 213, 0.3);
         }
-        button {
-            background-color: #007bff;
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--primary-text);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--surface-color);
+            padding: 30px 40px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px var(--shadow-color);
+            border: 1px solid var(--border-color);
+            max-width: 800px;
+            width: 100%;
+            margin: 20px;
+        }
+
+        h1 {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 2.5em;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h2, h3 {
+            color: #ffffff;
+            border-bottom: 2px solid var(--accent-color-1);
+            padding-bottom: 8px;
+            margin-top: 30px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--secondary-text);
+        }
+
+        input[type="text"], input[type="password"], textarea {
+            width: calc(100% - 24px);
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--bg-color);
+            color: var(--primary-text);
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-color-1);
+            box-shadow: 0 0 0 3px var(--glow-color);
+        }
+
+        /* --- New Button-Based Mode Selector --- */
+        .mode-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .mode-selector button {
+            flex-grow: 1;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid var(--border-color);
+            background-color: transparent;
+            color: var(--secondary-text);
+            transition: all 0.3s ease;
+        }
+
+        .mode-selector button:hover {
+            color: var(--primary-text);
+            border-color: var(--accent-color-1);
+        }
+
+        .mode-selector button.active {
+            background: var(--accent-gradient);
             color: white;
-            padding: 10px 15px;
+            border-color: transparent;
+        }
+
+        /* --- General Action Button Style --- */
+        .action-button {
+            background: var(--accent-gradient);
+            color: white;
+            padding: 12px 20px;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
+            font-weight: 600;
             margin-right: 10px;
+            transition: all 0.2s ease;
         }
-        button:hover { background-color: #0056b3; }
-        .key-selection { margin-bottom: 20px; }
-        .key-selection label { display: inline-block; margin-right: 15px; }
-        .key-selection input[type="radio"] { margin-right: 5px; }
-        .form-section { border: 1px solid #eee; padding: 20px; border-radius: 5px; margin-top: 20px; }
-        .form-section h3 { margin-top: 0; color: #333; }
-        .response-box {
-            background-color: #e9ecef;
-            padding: 15px;
-            border-radius: 4px;
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(58, 58, 213, 0.4);
+        }
+
+        .form-section {
+            border: 1px solid var(--border-color);
+            padding: 25px;
+            border-radius: 12px;
             margin-top: 20px;
+            background-color: rgba(0,0,0,0.1);
+        }
+
+        .response-box {
+            background-color: var(--bg-color);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
             font-family: 'Courier New', Courier, monospace;
             white-space: pre-wrap;
             word-wrap: break-word;
-            max-height: 300px;
+            max-height: 350px;
             overflow-y: auto;
-            border: 1px solid #ced4da;
+            border: 1px dashed var(--border-color);
+            transition: border-color 0.3s ease;
         }
-        .error-message { color: red; font-weight: bold; margin-bottom: 10px; }
-        .success-message { color: green; font-weight: bold; margin-bottom: 10px; }
+
+        .error-message { color: var(--error-color); font-weight: bold; margin-top: -10px; margin-bottom: 10px; display: block; }
+        .response-box.error-message { border-color: var(--error-color); }
+        .response-box.success-message { border-color: var(--success-color); }
+
     </style>
 </head>
 <body>
     <div class="container">
         <h1>roHBLOX Admin Panel</h1>
 
-        <div class="key-selection">
-            <p>Select API Key Type:</p>
-            <label>
-                <input type="radio" name="keyType" value="main" checked> Main Private Key
-            </label>
-            <label>
-                <input type="radio" name="keyType" value="app"> App Private Key
-            </label>
+        <div class="mode-selector">
+            <button id="selectMainBtn" class="active">Main Key Operations</button>
+            <button id="selectAppBtn">App Key Operations</button>
         </div>
 
         <label for="privateKeyInput">Enter Private Key:</label>
-        <input type="password" id="privateKeyInput" placeholder="Paste your private key here (e.g., MAIN_SECRET_KEY or App's Private Key)">
+        <input type="password" id="privateKeyInput" placeholder="Paste your key here...">
 
         <div id="mainKeyOps" class="form-section">
-            <h2>Main Private Key Operations</h2>
+            <h2>Main Private Key</h2>
+            <small class="error-message" id="listAppsError"></small>
+            <small class="error-message" id="createAppError"></small>
+            <small class="error-message" id="deleteAppError"></small>
 
             <h3>1. List All Apps</h3>
-            <button id="listAppsBtn">List Apps</button>
-            <p class="error-message" id="listAppsError"></p>
+            <button id="listAppsBtn" class="action-button">List Apps</button>
 
             <h3>2. Create New App</h3>
             <label for="createAppName">App Name:</label>
             <input type="text" id="createAppName" placeholder="e.g., MyNewClientApp">
-            <button id="createAppBtn">Create App</button>
-            <p class="error-message" id="createAppError"></p>
+            <button id="createAppBtn" class="action-button">Create App</button>
 
             <h3>3. Delete App</h3>
-            <label for="deleteAppId">App ID:</label>
-            <input type="text" id="deleteAppId" placeholder="ID of app to delete">
-            <button id="deleteAppBtn">Delete App</button>
-            <p class="error-message" id="deleteAppError"></p>
-
-            </div>
+            <label for="deleteAppId">App Name:</label>
+            <input type="text" id="deleteAppId" placeholder="Name of app to delete">
+            <button id="deleteAppBtn" class="action-button">Delete App</button>
+        </div>
 
         <div id="appKeyOps" class="form-section" style="display:none;">
-            <h2>App Private Key Operations</h2>
+            <h2>App Private Key</h2>
+            <small class="error-message" id="createLicenseError"></small>
+            <small class="error-message" id="removeLicenseError"></small>
+            <small class="error-message" id="removeUserError"></small>
 
             <h3>1. Create New License</h3>
             <label for="createLicenseUserId">User ID (for license):</label>
@@ -96,93 +212,44 @@
             <input type="text" id="createLicenseHwid" placeholder="Hardware ID">
             <label for="createLicenseDuration">Duration (days, optional):</label>
             <input type="text" id="createLicenseDuration" placeholder="e.g., 30 for 30 days">
-            <button id="createLicenseBtn">Create License</button>
-            <p class="error-message" id="createLicenseError"></p>
+            <button id="createLicenseBtn" class="action-button">Create License</button>
 
             <h3>2. Remove License</h3>
             <label for="removeLicenseToken">License Token:</label>
             <input type="text" id="removeLicenseToken" placeholder="Token of license to remove">
-            <button id="removeLicenseBtn">Remove License</button>
-            <p class="error-message" id="removeLicenseError"></p>
+            <button id="removeLicenseBtn" class="action-button">Remove License</button>
 
             <h3>3. Remove User</h3>
             <label for="removeUserId">User ID:</label>
             <input type="text" id="removeUserId" placeholder="ID of user to remove">
-            <button id="removeUserBtn">Remove User</button>
-            <p class="error-message" id="removeUserError"></p>
-
-            </div>
+            <button id="removeUserBtn" class="action-button">Remove User</button>
+        </div>
 
         <div class="response-box" id="responseBox">
             API Response will appear here...
         </div>
     </div>
 
-      <script>
+    <script>
         // --- Configuration ---
         const API_BASE_URL = 'https://backend.fryer.pro/auth/';
 
-        // --- Helper Functions for API Calls ---
-
-        function generateNonce() {
-            const array = new Uint8Array(16);
-            window.crypto.getRandomValues(array);
-            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-        }
-
-        function getCurrentUtcTimestamp() {
-            return Math.floor(Date.now() / 1000);
-        }
-
-        async function generateSignature(dataToSign, secretKey) {
-            const encoder = new TextEncoder();
-            const keyData = encoder.encode(secretKey);
-            const messageData = encoder.encode(dataToSign);
-            const key = await window.crypto.subtle.importKey(
-                "raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
-            );
-            const signature = await window.crypto.subtle.sign("HMAC", key, messageData);
-            return Array.from(new Uint8Array(signature), byte => byte.toString(16).padStart(2, '0')).join('');
-        }
-
-        // Makes a signed API request
-        async function makeApiCall(endpoint, payload, keyType, secretKey) {
-            const nonce = generateNonce();
-            const timestamp = getCurrentUtcTimestamp();
-
-            // --- FIX 1: BUILD THE CANONICAL STRING CORRECTLY ---
-            // This string MUST EXACTLY match the server's f-string:
-            // f"main_key={main_key}name={name}nonce={nonce}timestamp={timestamp}"
-
-            // The server uses `data.get('name')`, which results in the literal string "None" if the key isn't in the payload.
-            // We need to figure out what the 'name' value will be on the server.
-            // We'll standardize on sending a 'name' property in the payload for relevant endpoints.
+        // --- Core API Logic (Unchanged and Correct) ---
+        async function makeApiCall(endpoint, payload, secretKey) {
+            const nonce = (() => { const a = new Uint8Array(16); window.crypto.getRandomValues(a); return Array.from(a, b => b.toString(16).padStart(2, '0')).join(''); })();
+            const timestamp = Math.floor(Date.now() / 1000);
+            
             const nameValueForSigning = payload.name || 'None';
-
-            // Now, construct the string to be signed.
             const canonicalString = `main_key=${secretKey}name=${nameValueForSigning}nonce=${nonce}timestamp=${timestamp}`;
 
-            // On your server, the HMAC key is Config.MAIN_SECRET_KEY.
-            // In the JS, the 'secretKey' variable (which comes from the input field) must be that same value.
-            const signature = await generateSignature(canonicalString, secretKey);
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(secretKey);
+            const messageData = encoder.encode(canonicalString);
+            const key = await window.crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+            const signatureBuffer = await window.crypto.subtle.sign("HMAC", key, messageData);
+            const signature = Array.from(new Uint8Array(signatureBuffer), byte => byte.toString(16).padStart(2, '0')).join('');
 
-            // The final payload to be sent to the server.
-            // Your server needs 'main_key' in the payload to build its own canonical string.
-            const finalPayload = {
-                ...payload,
-                main_key: secretKey, // Use 'main_key' as the field name, as expected by the server
-                nonce: nonce,
-                timestamp: timestamp,
-                signature: signature
-            };
-
-            // For app-specific calls, you might use a different key name like 'private_key',
-            // but your main key auth clearly uses 'main_key' in the concatenation string.
-            // Let's stick to 'main_key' for the main operations for clarity. If your other routes
-            // use a different key name, you'd adjust this part.
-            // For now, let's assume all auth sends the key as 'main_key' for simplicity.
-            // If your app-key auth is different, that part would need its own logic.
-
+            const finalPayload = { ...payload, main_key: secretKey, nonce, timestamp, signature };
             const url = `${API_BASE_URL}${endpoint}`;
 
             console.log("DEBUG: String being signed:", canonicalString);
@@ -195,11 +262,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(finalPayload)
                 });
-
                 const data = await response.json();
-
                 if (!response.ok) {
-                    let errorMsg = (data && data.error) || (data && data.data && data.data.payload && data.data.payload.error) || 'Unknown API error.';
+                    const errorMsg = (data && data.error) || (data && data.data && data.data.payload && data.data.payload.error) || 'Unknown API error.';
                     throw new Error(`API Error ${response.status}: ${errorMsg}`);
                 }
                 return data;
@@ -208,113 +273,106 @@
                 throw error;
             }
         }
-
-        // --- UI Logic (No changes needed below, but included for completeness) ---
-        const privateKeyInput = document.getElementById('privateKeyInput');
-        const keyTypeRadios = document.querySelectorAll('input[name="keyType"]');
-        const mainKeyOps = document.getElementById('mainKeyOps');
-        const appKeyOps = document.getElementById('appKeyOps');
-        const responseBox = document.getElementById('responseBox');
-
-        function clearError(id) { document.getElementById(id).textContent = ''; }
-        function setError(id, message) { document.getElementById(id).textContent = message; }
-        function showResponse(data) {
-            responseBox.className = 'response-box success-message';
-            responseBox.textContent = JSON.stringify(data, null, 2);
-            setTimeout(() => { responseBox.className = 'response-box'; }, 3000);
-        }
-        function showErrorResponse(error) {
-            responseBox.className = 'response-box error-message';
-            responseBox.textContent = `Error: ${error.message || 'Unknown error'}`;
-            setTimeout(() => { responseBox.className = 'response-box'; }, 5000);
-        }
-
-        keyTypeRadios.forEach(radio => {
-            radio.addEventListener('change', () => {
-                if (radio.value === 'main') {
-                    mainKeyOps.style.display = 'block';
-                    appKeyOps.style.display = 'none';
-                } else {
-                    mainKeyOps.style.display = 'none';
-                    appKeyOps.style.display = 'block';
-                }
-                privateKeyInput.value = '';
-                responseBox.textContent = 'API Response will appear here...';
-                clearAllErrors();
-            });
-        });
-
-        function clearAllErrors() {
-            document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
-        }
-
-        document.getElementById('listAppsBtn').addEventListener('click', async () => {
-            clearAllErrors();
-            const privateKey = privateKeyInput.value;
-            if (!privateKey) { setError('listAppsError', 'Please enter the Main Private Key.'); return; }
-            try {
-                // For list_apps, there is no 'name' in the payload, so it will correctly use 'None' in the signature.
-                const response = await makeApiCall('list_apps', {}, 'main', privateKey);
-                showResponse(response);
-            } catch (error) {
-                showErrorResponse(error);
-                setError('listAppsError', `Error: ${error.message}`);
-            }
-        });
-
-        document.getElementById('createAppBtn').addEventListener('click', async () => {
-            clearAllErrors();
-            const privateKey = privateKeyInput.value;
-            const appName = document.getElementById('createAppName').value;
-            if (!privateKey) { setError('createAppError', 'Please enter the Main Private Key.'); return; }
-            if (!appName) { setError('createAppError', 'Please enter App Name.'); return; }
-
-            try {
-                // --- FIX 2: Standardize the payload key to 'name' ---
-                const response = await makeApiCall('create_app', { name: appName }, 'main', privateKey);
-                showResponse(response);
-                document.getElementById('createAppName').value = '';
-            } catch (error) {
-                showErrorResponse(error);
-                setError('createAppError', `Error: ${error.message}`);
-            }
-        });
-
-        document.getElementById('deleteAppBtn').addEventListener('click', async () => {
-            clearAllErrors();
-            const privateKey = privateKeyInput.value;
-            // --- FIX 3: Update variable name to reflect it's a name, not an ID ---
-            const appName = document.getElementById('deleteAppId').value;
-            if (!privateKey) { setError('deleteAppError', 'Please enter the Main Private Key.'); return; }
-            if (!appName) { setError('deleteAppError', 'Please enter App Name.'); return; }
-
-            try {
-                // --- FIX 4: Use the correct endpoint and payload structure ---
-                // Endpoint is 'delete_app', not 'app/delete'.
-                // Payload needs a 'name' key to match the server.
-                const response = await makeApiCall('delete_app', { name: appName }, 'main', privateKey);
-                showResponse(response);
-                document.getElementById('deleteAppId').value = '';
-            } catch (error) {
-                showErrorResponse(error);
-                setError('deleteAppError', `Error: ${error.message}`);
-            }
-        });
-
-        // NOTE: Your App Key Operations might need similar inspection. If your server-side
-        // code for those routes builds a different concatenation string, you'll need to
-        // add logic to handle that in `makeApiCall`. For now, this fixes the Main Key Ops.
-        document.getElementById('createLicenseBtn').addEventListener('click', async () => { /* ... (code unchanged) ... */ });
-        document.getElementById('removeLicenseBtn').addEventListener('click', async () => { /* ... (code unchanged) ... */ });
-        document.getElementById('removeUserBtn').addEventListener('click', async () => { /* ... (code unchanged) ... */ });
-
-
+        
+        // --- UI Logic and Event Handlers ---
         document.addEventListener('DOMContentLoaded', () => {
-            mainKeyOps.style.display = 'block';
-            appKeyOps.style.display = 'none';
-            // --- FIX 5 (Optional but Recommended): Update UI text to be accurate ---
-            document.querySelector('label[for="deleteAppId"]').textContent = 'App Name:';
-            document.getElementById('deleteAppId').placeholder = 'Name of app to delete';
+            // Element references
+            const selectMainBtn = document.getElementById('selectMainBtn');
+            const selectAppBtn = document.getElementById('selectAppBtn');
+            const mainKeyOps = document.getElementById('mainKeyOps');
+            const appKeyOps = document.getElementById('appKeyOps');
+            const responseBox = document.getElementById('responseBox');
+            const privateKeyInput = document.getElementById('privateKeyInput');
+
+            // --- Helper Functions for UI ---
+            const clearAllErrors = () => document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+            const clearInputsAndResponse = () => {
+                document.querySelectorAll('input[type="text"]').forEach(input => input.value = '');
+                responseBox.textContent = 'API Response will appear here...';
+                responseBox.className = 'response-box';
+                clearAllErrors();
+            };
+            const setError = (id, message) => document.getElementById(id).textContent = message;
+            const showResponse = (data, isError) => {
+                responseBox.textContent = isError ? `Error: ${data.message || 'Unknown error'}` : JSON.stringify(data, null, 2);
+                responseBox.className = `response-box ${isError ? 'error-message' : 'success-message'}`;
+            };
+
+            // --- Mode Switching Logic ---
+            const switchMode = (modeToShow) => {
+                const isMain = modeToShow === 'main';
+                mainKeyOps.style.display = isMain ? 'block' : 'none';
+                appKeyOps.style.display = isMain ? 'none' : 'block';
+                selectMainBtn.classList.toggle('active', isMain);
+                selectAppBtn.classList.toggle('active', !isMain);
+                privateKeyInput.placeholder = isMain ? 'Paste your MAIN private key here...' : "Paste your APP's private key here...";
+                clearInputsAndResponse();
+            };
+
+            selectMainBtn.addEventListener('click', () => switchMode('main'));
+            selectAppBtn.addEventListener('click', () => switchMode('app'));
+
+            // --- Main Key Op Listeners ---
+            document.getElementById('listAppsBtn').addEventListener('click', async () => {
+                clearAllErrors();
+                const pk = privateKeyInput.value;
+                if (!pk) return setError('listAppsError', 'Please enter the Main Private Key.');
+                try {
+                    const response = await makeApiCall('list_apps', {}, pk);
+                    showResponse(response, false);
+                } catch (error) {
+                    showResponse(error, true);
+                    setError('listAppsError', error.message);
+                }
+            });
+
+            document.getElementById('createAppBtn').addEventListener('click', async () => {
+                clearAllErrors();
+                const pk = privateKeyInput.value;
+                const appName = document.getElementById('createAppName').value;
+                if (!pk) return setError('createAppError', 'Please enter the Main Private Key.');
+                if (!appName) return setError('createAppError', 'Please enter an App Name.');
+                try {
+                    const response = await makeApiCall('create_app', { name: appName }, pk);
+                    showResponse(response, false);
+                    document.getElementById('createAppName').value = '';
+                } catch (error) {
+                    showResponse(error, true);
+                    setError('createAppError', error.message);
+                }
+            });
+            
+            document.getElementById('deleteAppBtn').addEventListener('click', async () => {
+                clearAllErrors();
+                const pk = privateKeyInput.value;
+                const appName = document.getElementById('deleteAppId').value;
+                if (!pk) return setError('deleteAppError', 'Please enter the Main Private Key.');
+                if (!appName) return setError('deleteAppError', 'Please enter an App Name.');
+                try {
+                    const response = await makeApiCall('delete_app', { name: appName }, pk);
+                    showResponse(response, false);
+                    document.getElementById('deleteAppId').value = '';
+                } catch (error) {
+                    showResponse(error, true);
+                    setError('deleteAppError', error.message);
+                }
+            });
+            
+            // --- App Key Op Listeners (Add functionality as needed) ---
+            // Note: The makeApiCall function currently signs everything as if it's a "main key" op.
+            // If your app-level auth uses a different signing string, you'll need to adjust it there.
+            // For now, these are placeholders.
+            const appKeyPlaceholder = (btnId, errorId) => {
+                 document.getElementById(btnId).addEventListener('click', () => {
+                    setError(errorId, 'This functionality needs to be connected to the correct API endpoint and signing logic.');
+                 });
+            };
+            appKeyPlaceholder('createLicenseBtn', 'createLicenseError');
+            appKeyPlaceholder('removeLicenseBtn', 'removeLicenseError');
+            appKeyPlaceholder('removeUserBtn', 'removeUserError');
+            
+            // --- Initialize View ---
+            switchMode('main');
         });
     </script>
 </body>
