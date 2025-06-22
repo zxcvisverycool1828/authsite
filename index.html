@@ -167,23 +167,28 @@
                         return `main_key=${key}name=${name}nonce=${nonce}timestamp=${timestamp}`;
                 }
             } else { // keyType === 'app'
-                // This logic is based on the @require_security_checks decorator's expected behavior,
-                // which likely signs payload fields in a predictable order.
-                // We'll construct the string based on the docstrings.
+                // ======================================================================
+                // START OF FIX: The logic below is the corrected part.
+                // It dynamically builds the string to sign by sorting the payload keys
+                // alphabetically. This is a robust method that will match the server.
+                // ======================================================================
                 const pKey = `private_key=${key}`;
                 const nT = `nonce=${nonce}timestamp=${timestamp}`;
                 
-                let fields = '';
-                // The order of concatenation must match the server's!
-                if (payload.expiration) fields += `expiration=${payload.expiration}`;
-                if (payload.license) fields += `license=${payload.license}`;
-                if (payload.name) fields += `name=${payload.name}`;
-                if (payload.value) fields += `value=${payload.value}`;
-                if ('auth_required' in payload) fields += `auth_required=${payload.auth_required}`;
-                if (payload.file_download_link) fields += `file_download_link=${payload.file_download_link}`;
-                if (payload.file_name) fields += `file_name=${payload.file_name}`;
+                const fieldsToSign = Object.keys(payload)
+                    // We exclude keys that are not part of the signed content itself.
+                    .filter(k => !['private_key', 'main_key', 'nonce', 'timestamp', 'signature'].includes(k))
+                    // Sorting alphabetically ensures the client and server build the string in the same order.
+                    .sort();
 
-                return `${pKey}${fields}${nT}`;
+                const signedFieldsString = fieldsToSign
+                    .map(k => `${k}=${payload[k]}`)
+                    .join('');
+
+                return `${pKey}${signedFieldsString}${nT}`;
+                // ======================================================================
+                // END OF FIX
+                // ======================================================================
             }
         };
 
@@ -214,12 +219,22 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(finalPayload)
                 });
-                const data = await response.json();
-                if (!response.ok) {
-                    const errorMsg = (data && data.error) || (data && data.data && data.data.payload && data.data.payload.error) || 'Unknown API error.';
-                    throw new Error(`API Error ${response.status}: ${errorMsg}`);
+                
+                // Check if the response is JSON before trying to parse it
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    const data = await response.json();
+                     if (!response.ok) {
+                        const errorMsg = (data && data.error) || (data && data.data && data.data.payload && data.data.payload.error) || 'Unknown API error.';
+                        throw new Error(`API Error ${response.status}: ${errorMsg}`);
+                    }
+                    return data;
+                } else {
+                    // It's not JSON, probably the HTML error page.
+                    const textData = await response.text();
+                    throw new Error(`API Error ${response.status}: Server returned non-JSON response. Check server logs for details. Response Body: ${textData.substring(0, 200)}...`);
                 }
-                return data;
+               
             } catch (error) {
                 console.error('API Call Error:', error);
                 throw error;
@@ -229,7 +244,10 @@
         const handleRequest = async (endpoint, payload, key, keyType, errorId, confirmMsg = null) => {
             document.getElementById(errorId).textContent = '';
             if (confirmMsg && !confirm(confirmMsg)) return;
-            if (!key) return document.getElementById(errorId).textContent = 'Key is required.';
+            if (!key) {
+                document.getElementById(errorId).textContent = 'Key is required.';
+                return;
+            }
             
             try {
                 const response = await makeApiCall(endpoint, payload, key, keyType);
@@ -277,7 +295,12 @@
         // App Key Listeners
         addListener('addLicenseBtn', 'add_license', 'app', () => {
             const exp = document.getElementById('addLicenseExpiration').value;
-            return exp ? { expiration: parseInt(exp, 10) } : {};
+            const payload = {};
+            // Only add expiration to payload if it's a non-empty string
+            if (exp) {
+                payload.expiration = parseInt(exp, 10);
+            }
+            return payload;
         }, 'appOpsError');
         addListener('removeLicenseBtn', 'remove_license', 'app', () => ({ license: document.getElementById('removeLicenseToken').value }), 'appOpsError');
         addListener('removeUsedLicensesBtn', 'remove_used_licenses', 'app', () => ({}), 'appOpsError');
